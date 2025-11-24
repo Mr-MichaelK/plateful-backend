@@ -1,18 +1,26 @@
+// server.js 
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
-import cookieParser from "cookie-parser"; // nour: import cookie parser
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+import cookieParser from "cookie-parser";
 
-import { connectToDb } from "./db.js";
-// nour: auth routes for signup and login
+import connectDB from "./db.js";
+import recipeRoutes from "./routes/recipeRoutes.js";
+import commentRoutes from "./routes/commentRoutes.js";
+import favoriteRoutes from "./routes/favoriteRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
 
-// allow credentials (cookies) from our frontend
+// ---------- MIDDLEWARE ----------
+app.use(express.json());
+app.use(cookieParser());
+
+// Allow frontend access
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -20,25 +28,47 @@ app.use(
   })
 );
 
-app.use(express.json());
-app.use(cookieParser());
+// ---------- STATIC FILES ----------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-connectToDb()
-  .then(() => {
-    console.log("DB ready");
+// Serve images from /uploads folder
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-    app.get("/", (req, res) => {
-      res.json({ message: "Plateful backend is running" });
-    });
 
-    // nour: mount auth endpoints: POST /signup and POST /login
-    app.use(authRoutes);
+// ---------- DATABASE CONNECTION ----------
+let cachedDb = null;
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("Failed to connect to DB", err);
-    process.exit(1);
-  });
+app.use(async (req, res, next) => {
+  try {
+    if (!cachedDb) {
+      cachedDb = await connectDB();
+      console.log("MongoDB connected successfully");
+    }
+    req.db = cachedDb;
+    next();
+  } catch (err) {
+    console.error("DB connection error:", err);
+    res.status(500).json({ error: "Database connection error" });
+  }
+});
+
+
+// ---------- ROUTES ----------
+app.use("/api/recipes", recipeRoutes);
+app.use("/api/comments", commentRoutes);
+app.use("/api/favorites", favoriteRoutes);
+app.use("/api/auth", authRoutes);
+
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+
+// ---------- START SERVER ----------
+const PORT = process.env.PORT || 5001;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
