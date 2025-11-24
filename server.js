@@ -1,9 +1,11 @@
+// backend/server.js
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import router from "./routes.js";
 import authRouter from "./auth/authRoutes.js";
 import { connectToDb } from "./db.js";
+import path from "path";
 
 const app = express();
 
@@ -14,6 +16,9 @@ app.use(cors({
 
 app.use(cookieParser());
 app.use(express.json());
+
+// Serve uploads folder
+app.use("/uploads", express.static(path.join(path.resolve(), "uploads")));
 
 await connectToDb();
 
