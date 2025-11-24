@@ -8,6 +8,7 @@ import {
   createRecipe,
   updateRecipe,
   deleteRecipe,
+  getFeaturedRecipes,
 } from "./controllers/recipeController.js";
 
 import {
@@ -27,6 +28,7 @@ const router = express.Router();
    Recipe Routes
 --------------------- */
 router.get("/recipes", attachDb, getAllRecipes);
+router.get("/recipes/featured", attachDb, getFeaturedRecipes);
 router.get("/recipes/:title", attachDb, getRecipeByTitle);
 router.post("/recipes", attachDb, createRecipe);
 router.put("/recipes/:title", attachDb, updateRecipe);

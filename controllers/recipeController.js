@@ -100,3 +100,32 @@ export const deleteRecipe = async (req, res) => {
     res.status(500).json({ error: "Failed to delete recipe" });
   }
 };
+
+// Returns 4 featured recipes (randomly, could change every day)
+export const getFeaturedRecipes = async (req, res) => {
+  try {
+    const recipes = await req.db.collection("recipes").find().toArray();
+
+    // Normalize images
+    const normalized = recipes.map((r) => ({
+      ...r,
+      images: r.images || r.extraImages || [],
+    }));
+
+    // Daily rotation using date
+  
+    const day = new Date().getDate(); // 1-31
+    const startIndex = day % normalized.length;
+    const featured = [];
+    for (let i = 0; i < 4; i++) {
+      featured.push(normalized[(startIndex + i) % normalized.length]);
+    }
+ 
+
+    res.json(featured);
+  } catch (err) {
+    console.error("Failed to fetch featured recipes:", err);
+    res.status(500).json({ error: "Failed to fetch featured recipes" });
+  }
+};
+
