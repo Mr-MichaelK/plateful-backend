@@ -1,7 +1,14 @@
 export const getAllRecipes = async (req, res) => {
   try {
     const recipes = await req.db.collection("recipes").find().toArray();
-    res.json(recipes);
+
+    // Normalize ALL recipes inside the array
+    const normalized = recipes.map((r) => ({
+      ...r,
+      images: r.images || r.extraImages || [],
+    }));
+
+    res.json(normalized);
   } catch (err) {
     console.error("Failed to fetch recipes:", err);
     res.status(500).json({ error: "Failed to fetch recipes" });
@@ -18,9 +25,9 @@ export const getRecipeByTitle = async (req, res) => {
 
     if (!recipe) return res.status(404).json({ error: "Recipe not found" });
 
-    // Normalize images so frontend ALWAYS receives the same fields
-    recipe.extraImages = recipe.extraImages || recipe.images || [];
-    delete recipe.images;
+    // Always return "images"
+    recipe.images = recipe.images || recipe.extraImages || [];
+    delete recipe.extraImages;
 
     res.json(recipe);
   } catch (err) {
@@ -37,16 +44,15 @@ export const createRecipe = async (req, res) => {
       return res.status(400).json({ error: "Missing fields" });
     }
 
-    // Standardize schema
     const newRecipe = {
       title: data.title,
       description: data.description,
       category: data.category,
-      image: data.image,              // main image
-      extraImages: data.images || [], // array of images
+      image: data.image,       // main image
+      images: data.images || [], // array of images
       whyLove: data.whyLove || "",
       ingredients: data.ingredients || [],
-      steps: data.steps || []
+      steps: data.steps || [],
     };
 
     const result = await req.db.collection("recipes").insertOne(newRecipe);
@@ -67,10 +73,10 @@ export const updateRecipe = async (req, res) => {
       description: data.description,
       category: data.category,
       image: data.image,
-      extraImages: data.images || [],
+      images: data.images || [],
       whyLove: data.whyLove || "",
       ingredients: data.ingredients || [],
-      steps: data.steps || []
+      steps: data.steps || [],
     };
 
     await req.db

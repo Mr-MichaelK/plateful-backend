@@ -19,10 +19,11 @@ const client = new MongoClient(uri, {
 
 let db;
 
+// Connect to DB once (server startup)
 export async function connectToDb() {
   try {
     await client.connect();
-    db = client.db("plateful_db"); 
+    db = client.db("plateful_db");
     console.log("MongoDB connected!");
   } catch (err) {
     console.error("MongoDB connection failed:", err);
@@ -30,9 +31,24 @@ export async function connectToDb() {
   }
 }
 
+// Getter
 export function getDb() {
   if (!db) {
     throw new Error("Database not initialized. Call connectToDb() first.");
   }
   return db;
+}
+
+// NEW → attach db to requests
+export function attachDb(req, res, next) {
+  try {
+    if (!db) {
+      throw new Error("Database not initialized. Call connectToDb() first.");
+    }
+    req.db = db; // 👈 FIX: now controllers can use req.db
+    next();
+  } catch (err) {
+    console.error("DB Middleware Error:", err);
+    res.status(500).json({ error: "Database not available" });
+  }
 }
