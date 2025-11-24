@@ -1,74 +1,28 @@
-// server.js 
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
 import cookieParser from "cookie-parser";
-
-import connectDB from "./db.js";
-import recipeRoutes from "./routes/recipeRoutes.js";
-import commentRoutes from "./routes/commentRoutes.js";
-import favoriteRoutes from "./routes/favoriteRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
-
-dotenv.config();
+import router from "./routes.js";
+import authRouter from "./auth/authRoutes.js";
+import { connectToDb } from "./db.js";
 
 const app = express();
 
-// ---------- MIDDLEWARE ----------
-app.use(express.json());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
+
 app.use(cookieParser());
+app.use(express.json());
 
-// Allow frontend access
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
+await connectToDb();
 
-// ---------- STATIC FILES ----------
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Auth endpoints
+app.use("", authRouter);
 
-// Serve images from /uploads folder
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// API endpoints
+app.use("/api", router);
 
-
-// ---------- DATABASE CONNECTION ----------
-let cachedDb = null;
-
-app.use(async (req, res, next) => {
-  try {
-    if (!cachedDb) {
-      cachedDb = await connectDB();
-      console.log("MongoDB connected successfully");
-    }
-    req.db = cachedDb;
-    next();
-  } catch (err) {
-    console.error("DB connection error:", err);
-    res.status(500).json({ error: "Database connection error" });
-  }
-});
-
-
-// ---------- ROUTES ----------
-app.use("/api/recipes", recipeRoutes);
-app.use("/api/comments", commentRoutes);
-app.use("/api/favorites", favoriteRoutes);
-app.use("/api/auth", authRoutes);
-
-// Health check
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-
-// ---------- START SERVER ----------
-const PORT = process.env.PORT || 5001;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(5001, () => {
+  console.log("Server running on port 5001");
 });
