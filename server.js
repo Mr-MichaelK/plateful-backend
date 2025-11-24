@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser"; // nour: import cookie parser
 
 import { connectToDb } from "./db.js";
 // nour: auth routes for signup and login
@@ -9,10 +10,18 @@ import authRoutes from "./routes/authRoutes.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-app.use(cors());
+// allow credentials (cookies) from our frontend
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+
 app.use(express.json());
+app.use(cookieParser());
 
 connectToDb()
   .then(() => {
