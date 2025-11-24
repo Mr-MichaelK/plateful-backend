@@ -1,6 +1,8 @@
 // routes.js
 import express from "express";
 import { attachDb } from "./db.js";
+import { subscribeNewsletter } from "./controllers/newsletterController.js";
+
 
 import {
   getAllRecipes,
@@ -47,4 +49,6 @@ router.delete("/favorites/:title", attachDb, removeFavorite);
 router.post("/comments/:title", attachDb, addComment);
 router.get("/comments/:title", attachDb, getCommentsForRecipe);
 
+
+router.post("/newsletter/subscribe", attachDb, subscribeNewsletter);
 export default router;

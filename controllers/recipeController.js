@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+
 export const getAllRecipes = async (req, res) => {
   try {
     const recipes = await req.db.collection("recipes").find().toArray();
@@ -56,12 +58,52 @@ export const createRecipe = async (req, res) => {
     };
 
     const result = await req.db.collection("recipes").insertOne(newRecipe);
+
+    // Send notification to newsletter subscribers
+    sendRecipeNotification(req.db, newRecipe);
+
     res.json({ message: "Recipe created", id: result.insertedId });
   } catch (err) {
     console.error("Failed to create recipe:", err);
     res.status(500).json({ error: "Failed to create recipe" });
   }
 };
+
+// Helper function to send notification emails
+const sendRecipeNotification = async (db, recipe) => {
+  try {
+    const subscribers = await db.collection("newsletter").find().toArray();
+    const emails = subscribers.map(sub => sub.email);
+
+    if (emails.length === 0) return;
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: false, // true for port 465
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Recipe App" <${process.env.SMTP_USER}>`,
+      to: emails, // can be comma-separated or array
+      subject: `New Recipe: ${recipe.title}`,
+      text: `Check out our new recipe: ${recipe.title}!\n\n${recipe.description}`,
+      html: `<h1>New Recipe Alert!</h1>
+             <h2>${recipe.title}</h2>
+             <p>${recipe.description}</p>
+             <p>Check it out now on our website!</p>`,
+    });
+
+    console.log("Newsletter notifications sent!");
+  } catch (err) {
+    console.error("Failed to send recipe notifications:", err);
+  }
+};
+
 
 export const updateRecipe = async (req, res) => {
   try {
