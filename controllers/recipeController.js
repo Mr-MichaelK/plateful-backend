@@ -1,13 +1,17 @@
+// controllers/recipeController.js
 import nodemailer from "nodemailer";
 
+/* -------------------------------------------------------
+   GET ALL RECIPES
+------------------------------------------------------- */
 export const getAllRecipes = async (req, res) => {
   try {
     const recipes = await req.db.collection("recipes").find().toArray();
 
-    // Normalize ALL recipes inside the array
     const normalized = recipes.map((r) => ({
       ...r,
-      images: r.images || r.extraImages || [],
+      images: r.images || [],
+      extraImages: r.extraImages || r.images?.slice(1) || [],
     }));
 
     res.json(normalized);
@@ -17,6 +21,9 @@ export const getAllRecipes = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------
+   GET RECIPE BY TITLE
+------------------------------------------------------- */
 export const getRecipeByTitle = async (req, res) => {
   try {
     const decodedTitle = decodeURIComponent(req.params.title);
@@ -27,9 +34,8 @@ export const getRecipeByTitle = async (req, res) => {
 
     if (!recipe) return res.status(404).json({ error: "Recipe not found" });
 
-    // Always return "images"
-    recipe.images = recipe.images || recipe.extraImages || [];
-    delete recipe.extraImages;
+    recipe.images = recipe.images || [];
+    recipe.extraImages = recipe.extraImages || recipe.images.slice(1);
 
     res.json(recipe);
   } catch (err) {
@@ -38,28 +44,40 @@ export const getRecipeByTitle = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------
+   CREATE RECIPE (multer already saved files)
+------------------------------------------------------- */
 export const createRecipe = async (req, res) => {
   try {
-    const data = req.body;
+    const { title, description, category, whyLove } = req.body;
 
-    if (!data.title || !data.description || !data.category) {
-      return res.status(400).json({ error: "Missing fields" });
+    // arrays are sent as JSON strings from frontend
+    const ingredients = JSON.parse(req.body.ingredients || "[]");
+    const steps = JSON.parse(req.body.steps || "[]");
+
+    const imagePaths = (req.files || []).map(
+      (file) => `/uploads/${file.filename}`
+    );
+
+    if (imagePaths.length === 0) {
+      return res.status(400).json({ error: "Please upload at least 1 image" });
     }
 
     const newRecipe = {
-      title: data.title,
-      description: data.description,
-      category: data.category,
-      image: data.image,       // main image
-      images: data.images || [], // array of images
-      whyLove: data.whyLove || "",
-      ingredients: data.ingredients || [],
-      steps: data.steps || [],
+      title,
+      description,
+      category,
+      whyLove: whyLove || "",
+      image: imagePaths[0], // main image
+      images: imagePaths,
+      extraImages: imagePaths.slice(1),
+      ingredients,
+      steps,
     };
 
     const result = await req.db.collection("recipes").insertOne(newRecipe);
 
-    // Send notification to newsletter subscribers
+    // optional: newsletter emails
     sendRecipeNotification(req.db, newRecipe);
 
     res.json({ message: "Recipe created", id: result.insertedId });
@@ -69,18 +87,20 @@ export const createRecipe = async (req, res) => {
   }
 };
 
-// Helper function to send notification emails
+/* -------------------------------------------------------
+   SEND NOTIFICATION EMAILS
+------------------------------------------------------- */
 const sendRecipeNotification = async (db, recipe) => {
   try {
     const subscribers = await db.collection("newsletter").find().toArray();
-    const emails = subscribers.map(sub => sub.email);
+    const emails = subscribers.map((sub) => sub.email);
 
     if (emails.length === 0) return;
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
-      secure: false, // true for port 465
+      secure: false,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -88,42 +108,59 @@ const sendRecipeNotification = async (db, recipe) => {
     });
 
     await transporter.sendMail({
-      from: `"Recipe App" <${process.env.SMTP_USER}>`,
-      to: emails, // can be comma-separated or array
+      from: `"Plateful" <${process.env.SMTP_USER}>`,
+      to: emails,
       subject: `New Recipe: ${recipe.title}`,
-      text: `Check out our new recipe: ${recipe.title}!\n\n${recipe.description}`,
-      html: `<h1>New Recipe Alert!</h1>
-             <h2>${recipe.title}</h2>
-             <p>${recipe.description}</p>
-             <p>Check it out now on our website!</p>`,
+      html: `
+        <h2>New Recipe Alert!</h2>
+        <h3>${recipe.title}</h3>
+        <p>${recipe.description}</p>
+      `,
     });
 
-    console.log("Newsletter notifications sent!");
+    console.log("Newsletter notifications sent");
   } catch (err) {
     console.error("Failed to send recipe notifications:", err);
   }
 };
 
-
+/* -------------------------------------------------------
+   UPDATE RECIPE
+   - text (title, desc, etc.) always updated
+   - images updated ONLY if new files were uploaded
+------------------------------------------------------- */
 export const updateRecipe = async (req, res) => {
   try {
     const decodedTitle = decodeURIComponent(req.params.title);
-    const data = req.body;
 
-    const updatedRecipe = {
-      title: data.title,
-      description: data.description,
-      category: data.category,
-      image: data.image,
-      images: data.images || [],
-      whyLove: data.whyLove || "",
-      ingredients: data.ingredients || [],
-      steps: data.steps || [],
+    const { title, description, category, whyLove } = req.body;
+
+    const ingredients = JSON.parse(req.body.ingredients || "[]");
+    const steps = JSON.parse(req.body.steps || "[]");
+
+    const newImages = (req.files || []).map(
+      (file) => `/uploads/${file.filename}`
+    );
+
+    const updateDoc = {
+      title,
+      description,
+      category,
+      whyLove: whyLove || "",
+      ingredients,
+      steps,
     };
+
+    // Only overwrite images if user uploaded new ones
+    if (newImages.length > 0) {
+      updateDoc.image = newImages[0];
+      updateDoc.images = newImages;
+      updateDoc.extraImages = newImages.slice(1);
+    }
 
     await req.db
       .collection("recipes")
-      .updateOne({ title: decodedTitle }, { $set: updatedRecipe });
+      .updateOne({ title: decodedTitle }, { $set: updateDoc });
 
     res.json({ message: "Recipe updated" });
   } catch (err) {
@@ -132,6 +169,9 @@ export const updateRecipe = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------
+   DELETE RECIPE
+------------------------------------------------------- */
 export const deleteRecipe = async (req, res) => {
   try {
     const decodedTitle = decodeURIComponent(req.params.title);
@@ -143,26 +183,26 @@ export const deleteRecipe = async (req, res) => {
   }
 };
 
-// Returns 4 featured recipes (randomly, could change every day)
+/* -------------------------------------------------------
+   FEATURED RECIPES
+------------------------------------------------------- */
 export const getFeaturedRecipes = async (req, res) => {
   try {
     const recipes = await req.db.collection("recipes").find().toArray();
 
-    // Normalize images
     const normalized = recipes.map((r) => ({
       ...r,
-      images: r.images || r.extraImages || [],
+      images: r.images || [],
+      extraImages: r.extraImages || (r.images?.slice(1) || []),
     }));
 
-    // Daily rotation using date
-  
-    const day = new Date().getDate(); // 1-31
+    const day = new Date().getDate();
     const startIndex = day % normalized.length;
+
     const featured = [];
     for (let i = 0; i < 4; i++) {
       featured.push(normalized[(startIndex + i) % normalized.length]);
     }
- 
 
     res.json(featured);
   } catch (err) {
@@ -170,4 +210,3 @@ export const getFeaturedRecipes = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch featured recipes" });
   }
 };
-
