@@ -30,6 +30,7 @@ import {
 import {
   updateUserProfile,
   deleteUserProfile,
+  updatePassword,
 } from "./controllers/userController.js";
 
 const router = express.Router();
@@ -114,5 +115,7 @@ router.put(
 );
 
 router.delete("/users/profile", requireAuth, deleteUserProfile);
+
+router.put("/users/password", requireAuth, updatePassword);
 
 export default router;

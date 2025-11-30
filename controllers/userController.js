@@ -1,5 +1,6 @@
 import { getDb } from "../db.js";
 import { ObjectId } from "mongodb";
+import bcrypt from "bcryptjs";
 
 export async function updateUserProfile(req, res) {
   try {
@@ -114,5 +115,81 @@ export async function deleteUserProfile(req, res) {
     res
       .status(500)
       .json({ error: "Internal server error during account deletion." });
+  }
+}
+
+export async function updatePassword(req, res) {
+  try {
+    const db = getDb();
+    const userId = req.user.id;
+
+    // 1. Get passwords from the request body
+    const { currentPassword, newPassword } = req.body;
+
+    // 2. Basic validation
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "Both current and new passwords are required." });
+    }
+
+    if (newPassword.length < 12) {
+      return res
+        .status(400)
+        .json({ error: "New password must be at least 12 characters long." });
+    }
+
+    // 3. Fetch the user, including the stored hashed password
+    // We need to use findOne here to get the password field, which is usually excluded in other routes.
+    const user = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(userId) });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // 4. Verify the current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      return res
+        .status(401)
+        .json({ error: "The current password you entered is incorrect." });
+    }
+
+    // 5. Hash the new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // 6. Update the password in the database
+    const result = await db
+      .collection("users")
+      .updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { password: hashedNewPassword } }
+      );
+
+    if (result.matchedCount === 0) {
+      // Should not happen if user was found in step 3
+      return res.status(500).json({ error: "Failed to update password." });
+    }
+
+    // 7. Success response
+    // IMPORTANT: Clear the auth cookie! For security, changing a password should invalidate all current sessions.
+    res.clearCookie("auth_token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    res.json({
+      message:
+        "Password successfully changed. Please log in with your new password.",
+    });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    res
+      .status(500)
+      .json({ error: "Internal server error during password update." });
   }
 }
