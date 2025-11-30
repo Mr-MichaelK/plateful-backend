@@ -3,8 +3,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { getDb } from "../db.js";
-
-// made by nour diab
+import { ObjectId } from "mongodb"; // 🌟 FIX 1: Import ObjectId
 
 const router = express.Router();
 
@@ -72,12 +71,16 @@ router.post("/signup", async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      aboutMe: "",
+      profilePicUrl: null,
     });
 
     const newUser = {
       _id: result.insertedId,
       name,
       email,
+      aboutMe: "",
+      profilePicUrl: null,
     };
 
     const token = createToken(newUser);
@@ -96,6 +99,8 @@ router.post("/signup", async (req, res) => {
           id: newUser._id,
           name: newUser.name,
           email: newUser.email,
+          aboutMe: newUser.aboutMe,
+          profilePicUrl: newUser.profilePicUrl,
         },
       });
   } catch (err) {
@@ -141,6 +146,8 @@ router.post("/login", async (req, res) => {
           id: user._id,
           name: user.name,
           email: user.email,
+          aboutMe: user.aboutMe,
+          profilePicUrl: user.profilePicUrl,
         },
       });
   } catch (err) {
@@ -160,9 +167,8 @@ router.post("/logout", (req, res) => {
     .json({ message: "Logged out successfully" });
 });
 
-// fixed by Noura
-
-router.get("/check", (req, res) => {
+// check authentication status
+router.get("/check", async (req, res) => {
   const token = getTokenFromRequest(req);
 
   if (!token) {
@@ -172,12 +178,24 @@ router.get("/check", (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
+    const db = getDb();
+    const user = await db.collection("users").findOne(
+      { _id: new ObjectId(decoded.id) },
+      { projection: { password: 0 } } // Exclude the password field
+    );
+
+    if (!user) {
+      return res.status(401).json({ authenticated: false });
+    }
+
     res.json({
       authenticated: true,
       user: {
-        id: decoded.id,
-        name: decoded.name,
-        email: decoded.email,
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        aboutMe: user.aboutMe,
+        profilePicUrl: user.profilePicUrl,
       },
     });
   } catch (err) {

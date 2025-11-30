@@ -27,6 +27,12 @@ import {
   getCommentsForRecipe,
 } from "./controllers/commentController.js";
 
+import {
+  updateUserProfile,
+  deleteUserProfile,
+  updatePassword,
+} from "./controllers/userController.js";
+
 const router = express.Router();
 
 // =====================================================
@@ -38,7 +44,7 @@ const uploadPath = path.join(path.resolve(), "uploads");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadPath); // <-- FIXED HERE
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -99,5 +105,17 @@ router.post("/comments/:title", attachDb, requireAuth, addComment);
 
 // Newsletter
 router.post("/newsletter/subscribe", attachDb, subscribeNewsletter);
+
+router.put(
+  "/users/profile",
+  attachDb,
+  requireAuth,
+  upload.single("profilePicture"),
+  updateUserProfile
+);
+
+router.delete("/users/profile", requireAuth, deleteUserProfile);
+
+router.put("/users/password", requireAuth, updatePassword);
 
 export default router;
