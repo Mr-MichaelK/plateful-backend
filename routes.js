@@ -4,6 +4,7 @@ import path from "path";
 import multer from "multer";
 
 import { attachDb } from "./db.js";
+import { requireAuth } from "./auth/requireAuth.js";
 import { subscribeNewsletter } from "./controllers/newsletterController.js";
 
 import {
@@ -28,15 +29,19 @@ import {
 
 const router = express.Router();
 
-/* -----------------------------------------
-   MULTER STORAGE FOR RECIPE IMAGES
------------------------------------------ */
+// =====================================================
+// FIXED — ABSOLUTE UPLOAD PATH (required for multer)
+// Multer sometimes fails silently with relative paths,
+// so path.resolve() is used to guarantee correct folder.
+// =====================================================
+const uploadPath = path.join(path.resolve(), "uploads");
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads"); // folder already exists
+    cb(null, uploadPath); // <-- FIXED HERE
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname); // .jpg / .png / .webp
+    const ext = path.extname(file.originalname);
     const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueName + ext);
   },
@@ -52,37 +57,47 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-/* --------------------
-   RECIPE ROUTES
---------------------- */
+// ---------------- ROUTES -----------------
+
 router.get("/recipes", attachDb, getAllRecipes);
 router.get("/recipes/featured", attachDb, getFeaturedRecipes);
 router.get("/recipes/:title", attachDb, getRecipeByTitle);
 
-// IMPORTANT: images + text together (Option A)
-router.post("/recipes", attachDb, upload.array("images", 3), createRecipe);
-router.put("/recipes/:title", attachDb, upload.array("images", 3), updateRecipe);
-router.delete("/recipes/:title", attachDb, deleteRecipe);
-
-/* --------------------
-   FAVORITE ROUTES
---------------------- */
-router.post("/favorites/:title", attachDb, addFavorite);
-router.get("/favorites", attachDb, getFavorites);
-router.delete("/favorites/:title", attachDb, removeFavorite);
-
-/* --------------------
-   COMMENT ROUTES
---------------------- */
-router.post("/comments/:title", attachDb, addComment);
 router.get("/comments/:title", attachDb, getCommentsForRecipe);
 
-/* --------------------
-   NEWSLETTER
---------------------- */
+// CREATE — must be logged in
+router.post(
+  "/recipes",
+  attachDb,
+  requireAuth,
+  upload.array("images", 3),
+  createRecipe
+);
+
+// UPDATE — owner-only
+router.put(
+  "/recipes/:title",
+  attachDb,
+  requireAuth,
+  upload.array("images", 3),
+  updateRecipe
+);
+
+// DELETE — owner-only
+router.delete("/recipes/:title", attachDb, requireAuth, deleteRecipe);
+
+// FAVORITES — per user
+router.post("/favorites/:title", attachDb, requireAuth, addFavorite);
+router.get("/favorites", attachDb, requireAuth, getFavorites);
+router.delete("/favorites/:title", attachDb, requireAuth, removeFavorite);
+
+// COMMENTS — must be logged in
+router.post("/comments/:title", attachDb, requireAuth, addComment);
+
+// Newsletter
 router.post("/newsletter/subscribe", attachDb, subscribeNewsletter);
 
 export default router;

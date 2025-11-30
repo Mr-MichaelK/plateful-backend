@@ -1,9 +1,16 @@
 // controllers/favoriteController.js
+
 export const addFavorite = async (req, res) => {
   try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { title } = req.params;
     const decodedTitle = decodeURIComponent(title);
 
+    // Ensure recipe exists
     const recipe = await req.db
       .collection("recipes")
       .findOne({ title: decodedTitle });
@@ -12,10 +19,16 @@ export const addFavorite = async (req, res) => {
       return res.status(404).json({ error: "Recipe not found" });
     }
 
-    // Insert ONLY the title — we fetch full recipe info in the frontend
+    // Upsert favorite for this specific user + recipe
     await req.db.collection("favorites").updateOne(
-      { title: decodedTitle },
-      { $set: { title: decodedTitle } },
+      { userEmail, title: decodedTitle },
+      {
+        $set: {
+          userEmail,
+          title: decodedTitle,
+          createdAt: new Date(),
+        },
+      },
       { upsert: true }
     );
 
@@ -26,9 +39,31 @@ export const addFavorite = async (req, res) => {
   }
 };
 
+
 export const getFavorites = async (req, res) => {
   try {
-    const favorites = await req.db.collection("favorites").find().toArray();
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const favorites = await req.db
+      .collection("favorites")
+      .aggregate([
+        { $match: { userEmail } },
+        {
+          $lookup: {
+            from: "recipes",
+            localField: "title",
+            foreignField: "title",
+            as: "recipe",
+          },
+        },
+        { $unwind: "$recipe" },
+        { $replaceRoot: { newRoot: "$recipe" } },
+      ])
+      .toArray();
+
     res.json(favorites);
   } catch (err) {
     console.error("Error fetching favorites:", err);
@@ -38,10 +73,17 @@ export const getFavorites = async (req, res) => {
 
 export const removeFavorite = async (req, res) => {
   try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { title } = req.params;
     const decodedTitle = decodeURIComponent(title);
 
-    await req.db.collection("favorites").deleteOne({ title: decodedTitle });
+    await req.db
+      .collection("favorites")
+      .deleteOne({ userEmail, title: decodedTitle });
 
     res.json({ message: "Favorite removed" });
   } catch (err) {

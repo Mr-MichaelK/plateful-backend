@@ -53,7 +53,6 @@ router.post("/signup", async (req, res) => {
         .json({ error: "Name, email and password are required" });
     }
 
-    // backend password rule (same as frontend)
     if (password.length < 12) {
       return res
         .status(400)
@@ -66,7 +65,6 @@ router.post("/signup", async (req, res) => {
       return res.status(409).json({ error: "Email already in use" });
     }
 
-    // hash password before saving it
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await db.collection("users").insertOne({
@@ -81,15 +79,14 @@ router.post("/signup", async (req, res) => {
       email,
     };
 
-    // auto-login on signup (set jwt cookie for 30 days)
     const token = createToken(newUser);
 
     res
       .cookie("auth_token", token, {
-        httpOnly: true, // frontend js can't read this, more secure
-        secure: process.env.NODE_ENV === "production", // only https in production
-        sameSite: "lax", // safe default for cross-site
-        maxAge: THIRTY_DAYS_MS, // keep user signed in for 30 days
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: THIRTY_DAYS_MS,
       })
       .status(201)
       .json({
@@ -106,8 +103,7 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-// login: check email + password against stored hash
-// also keep user signed in with jwt cookie for 30 days
+// login
 router.post("/login", async (req, res) => {
   try {
     const db = getDb();
@@ -123,17 +119,14 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // compare plain password to hashed password in db
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // create jwt for this user
     const token = createToken(user);
 
-    // send jwt in http-only cookie so backend can authenticate later
     res
       .cookie("auth_token", token, {
         httpOnly: true,
@@ -155,7 +148,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// logout: clear auth cookie so user signs out
+// logout
 router.post("/logout", (req, res) => {
   res
     .clearCookie("auth_token", {
@@ -166,7 +159,8 @@ router.post("/logout", (req, res) => {
     .json({ message: "Logged out successfully" });
 });
 
-// auth check: tell frontend if user already logged in
+// fixed by Noura
+
 router.get("/check", (req, res) => {
   const token = getTokenFromRequest(req);
 
