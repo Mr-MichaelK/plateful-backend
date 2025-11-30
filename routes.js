@@ -27,7 +27,10 @@ import {
   getCommentsForRecipe,
 } from "./controllers/commentController.js";
 
-import { updateUserProfile } from "./controllers/userController.js";
+import {
+  updateUserProfile,
+  deleteUserProfile,
+} from "./controllers/userController.js";
 
 const router = express.Router();
 
@@ -40,7 +43,7 @@ const uploadPath = path.join(path.resolve(), "uploads");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadPath); // <-- FIXED HERE
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -106,8 +109,10 @@ router.put(
   "/users/profile",
   attachDb,
   requireAuth,
-  upload.single("profilePicture"), // 👈 This handles the image and text fields
-  updateUserProfile // 👈 New controller function
+  upload.single("profilePicture"),
+  updateUserProfile
 );
+
+router.delete("/users/profile", requireAuth, deleteUserProfile);
 
 export default router;
