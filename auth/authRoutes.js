@@ -99,7 +99,6 @@ router.post("/signup", async (req, res) => {
           id: newUser._id,
           name: newUser.name,
           email: newUser.email,
-          // 🌟 FIX 2: Add profile fields to signup response
           aboutMe: newUser.aboutMe,
           profilePicUrl: newUser.profilePicUrl,
         },
@@ -181,7 +180,6 @@ router.get("/check", async (req, res) => {
 
     const db = getDb();
     const user = await db.collection("users").findOne(
-      // 🌟 FIX 3: ObjectId is now correctly imported and used
       { _id: new ObjectId(decoded.id) },
       { projection: { password: 0 } } // Exclude the password field
     );
@@ -201,7 +199,6 @@ router.get("/check", async (req, res) => {
       },
     });
   } catch (err) {
-    // This block now only catches genuine token issues (like expiry or malformed token)
     console.error("Token verification failed:", err.message);
     return res.status(401).json({ authenticated: false });
   }

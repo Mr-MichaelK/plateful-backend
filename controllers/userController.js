@@ -123,10 +123,8 @@ export async function updatePassword(req, res) {
     const db = getDb();
     const userId = req.user.id;
 
-    // 1. Get passwords from the request body
     const { currentPassword, newPassword } = req.body;
 
-    // 2. Basic validation
     if (!currentPassword || !newPassword) {
       return res
         .status(400)
@@ -139,8 +137,6 @@ export async function updatePassword(req, res) {
         .json({ error: "New password must be at least 12 characters long." });
     }
 
-    // 3. Fetch the user, including the stored hashed password
-    // We need to use findOne here to get the password field, which is usually excluded in other routes.
     const user = await db
       .collection("users")
       .findOne({ _id: new ObjectId(userId) });
@@ -149,7 +145,6 @@ export async function updatePassword(req, res) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    // 4. Verify the current password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!isMatch) {
@@ -158,10 +153,8 @@ export async function updatePassword(req, res) {
         .json({ error: "The current password you entered is incorrect." });
     }
 
-    // 5. Hash the new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // 6. Update the password in the database
     const result = await db
       .collection("users")
       .updateOne(
@@ -170,12 +163,9 @@ export async function updatePassword(req, res) {
       );
 
     if (result.matchedCount === 0) {
-      // Should not happen if user was found in step 3
       return res.status(500).json({ error: "Failed to update password." });
     }
 
-    // 7. Success response
-    // IMPORTANT: Clear the auth cookie! For security, changing a password should invalidate all current sessions.
     res.clearCookie("auth_token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
