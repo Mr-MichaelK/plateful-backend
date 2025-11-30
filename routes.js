@@ -27,6 +27,8 @@ import {
   getCommentsForRecipe,
 } from "./controllers/commentController.js";
 
+import { updateUserProfile } from "./controllers/userController.js";
+
 const router = express.Router();
 
 // =====================================================
@@ -99,5 +101,13 @@ router.post("/comments/:title", attachDb, requireAuth, addComment);
 
 // Newsletter
 router.post("/newsletter/subscribe", attachDb, subscribeNewsletter);
+
+router.put(
+  "/users/profile",
+  attachDb,
+  requireAuth,
+  upload.single("profilePicture"), // 👈 This handles the image and text fields
+  updateUserProfile // 👈 New controller function
+);
 
 export default router;
