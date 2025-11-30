@@ -1,3 +1,4 @@
+// backend/auth/authRoutes.js
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -110,9 +111,7 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ error: "Email and password are required" });
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
     const user = await db.collection("users").findOne({ email });
@@ -161,7 +160,7 @@ router.post("/logout", (req, res) => {
     .json({ message: "Logged out successfully" });
 });
 
-// fixed by Noura 
+// fixed by Noura
 
 router.get("/check", (req, res) => {
   const token = getTokenFromRequest(req);
