@@ -1,9 +1,7 @@
 // controllers/recipeController.js
 import nodemailer from "nodemailer";
 
-/* -------------------------------------------------------
-   GET ALL RECIPES
-------------------------------------------------------- */
+
 export const getAllRecipes = async (req, res) => {
   try {
     const recipes = await req.db.collection("recipes").find().toArray();
@@ -11,7 +9,7 @@ export const getAllRecipes = async (req, res) => {
     const normalized = recipes.map((r) => ({
       ...r,
       images: r.images || [],
-      extraImages: r.extraImages || r.images?.slice(1) || [],
+      extraImages: r.extraImages || (r.images?.slice(1) || []),
     }));
 
     res.json(normalized);
@@ -21,9 +19,7 @@ export const getAllRecipes = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------
-   GET RECIPE BY TITLE
-------------------------------------------------------- */
+
 export const getRecipeByTitle = async (req, res) => {
   try {
     const decodedTitle = decodeURIComponent(req.params.title);
@@ -44,14 +40,15 @@ export const getRecipeByTitle = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------
-   CREATE RECIPE (multer already saved files)
-------------------------------------------------------- */
+
 export const createRecipe = async (req, res) => {
   try {
+    const userEmail = req.user?.email;
+    if (!userEmail)
+      return res.status(401).json({ error: "Unauthorized" });
+
     const { title, description, category, whyLove } = req.body;
 
-    // arrays are sent as JSON strings from frontend
     const ingredients = JSON.parse(req.body.ingredients || "[]");
     const steps = JSON.parse(req.body.steps || "[]");
 
@@ -59,25 +56,25 @@ export const createRecipe = async (req, res) => {
       (file) => `/uploads/${file.filename}`
     );
 
-    if (imagePaths.length === 0) {
-      return res.status(400).json({ error: "Please upload at least 1 image" });
-    }
+    if (imagePaths.length === 0)
+      return res.status(400).json({ error: "At least 1 image required" });
 
     const newRecipe = {
       title,
       description,
       category,
       whyLove: whyLove || "",
-      image: imagePaths[0], // main image
+      image: imagePaths[0],
       images: imagePaths,
       extraImages: imagePaths.slice(1),
       ingredients,
       steps,
+      ownerEmail: userEmail,
+      createdAt: new Date(),
     };
 
     const result = await req.db.collection("recipes").insertOne(newRecipe);
 
-    // optional: newsletter emails
     sendRecipeNotification(req.db, newRecipe);
 
     res.json({ message: "Recipe created", id: result.insertedId });
@@ -87,9 +84,6 @@ export const createRecipe = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------
-   SEND NOTIFICATION EMAILS
-------------------------------------------------------- */
 const sendRecipeNotification = async (db, recipe) => {
   try {
     const subscribers = await db.collection("newsletter").find().toArray();
@@ -101,10 +95,7 @@ const sendRecipeNotification = async (db, recipe) => {
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
       secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     });
 
     await transporter.sendMail({
@@ -117,21 +108,29 @@ const sendRecipeNotification = async (db, recipe) => {
         <p>${recipe.description}</p>
       `,
     });
-
-    console.log("Newsletter notifications sent");
   } catch (err) {
     console.error("Failed to send recipe notifications:", err);
   }
 };
 
-/* -------------------------------------------------------
-   UPDATE RECIPE
-   - text (title, desc, etc.) always updated
-   - images updated ONLY if new files were uploaded
-------------------------------------------------------- */
+
 export const updateRecipe = async (req, res) => {
   try {
     const decodedTitle = decodeURIComponent(req.params.title);
+    const userEmail = req.user?.email;
+
+    if (!userEmail)
+      return res.status(401).json({ error: "Unauthorized" });
+
+    const existing = await req.db
+      .collection("recipes")
+      .findOne({ title: decodedTitle });
+
+    if (!existing)
+      return res.status(404).json({ error: "Recipe not found" });
+
+    if (existing.ownerEmail !== userEmail)
+      return res.status(403).json({ error: "Not allowed (not owner)" });
 
     const { title, description, category, whyLove } = req.body;
 
@@ -149,9 +148,9 @@ export const updateRecipe = async (req, res) => {
       whyLove: whyLove || "",
       ingredients,
       steps,
+      updatedAt: new Date(),
     };
 
-    // Only overwrite images if user uploaded new ones
     if (newImages.length > 0) {
       updateDoc.image = newImages[0];
       updateDoc.images = newImages;
@@ -169,13 +168,26 @@ export const updateRecipe = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------
-   DELETE RECIPE
-------------------------------------------------------- */
 export const deleteRecipe = async (req, res) => {
   try {
     const decodedTitle = decodeURIComponent(req.params.title);
+    const userEmail = req.user?.email;
+
+    if (!userEmail)
+      return res.status(401).json({ error: "Unauthorized" });
+
+    const existing = await req.db
+      .collection("recipes")
+      .findOne({ title: decodedTitle });
+
+    if (!existing)
+      return res.status(404).json({ error: "Recipe not found" });
+
+    if (existing.ownerEmail !== userEmail)
+      return res.status(403).json({ error: "Not allowed (not owner)" });
+
     await req.db.collection("recipes").deleteOne({ title: decodedTitle });
+
     res.json({ message: "Recipe deleted" });
   } catch (err) {
     console.error("Failed to delete recipe:", err);
@@ -183,9 +195,7 @@ export const deleteRecipe = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------
-   FEATURED RECIPES
-------------------------------------------------------- */
+
 export const getFeaturedRecipes = async (req, res) => {
   try {
     const recipes = await req.db.collection("recipes").find().toArray();
