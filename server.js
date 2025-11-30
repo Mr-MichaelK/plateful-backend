@@ -28,7 +28,7 @@ await connectToDb();
 
 // ---------------------- AUTH ROUTES ----------------------
 // FIX NOTE: Frontend must call http://localhost:5001/auth/login, /auth/signup, /auth/check
-app.use("/auth", authRouter); // <-- IMPORTANT: frontend must include /auth
+app.use("/api/auth", authRouter);
 
 // ---------------------- API ROUTES ----------------------
 app.use("/api", router);
