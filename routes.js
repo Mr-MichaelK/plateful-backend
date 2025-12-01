@@ -33,6 +33,8 @@ import {
   updatePassword,
 } from "./controllers/userController.js";
 
+import { getMealPlan, saveMealPlan } from "./controllers/mealPlanController.js";
+
 const router = express.Router();
 
 // =====================================================
@@ -117,5 +119,8 @@ router.put(
 router.delete("/users/profile", requireAuth, deleteUserProfile);
 
 router.put("/users/password", requireAuth, updatePassword);
+
+router.get("/meal-plans/:weekStartDate", attachDb, requireAuth, getMealPlan);
+router.put("/meal-plans", attachDb, requireAuth, saveMealPlan); // Using PUT for upsert
 
 export default router;
