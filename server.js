@@ -6,6 +6,9 @@ import router from "./routes.js"; // /api routes
 import authRouter from "./auth/authRoutes.js"; // /auth routes
 import { connectToDb } from "./db.js";
 import path from "path";
+import { swaggerUi, swaggerSpec } from "./swagger.js";
+
+
 
 const app = express();
 
@@ -19,6 +22,9 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Swagger Docs
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 
 // ---------------------- STATIC UPLOADS ----------------------
 app.use("/uploads", express.static(path.join(path.resolve(), "uploads")));

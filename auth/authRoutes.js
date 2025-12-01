@@ -6,6 +6,109 @@ import { getDb } from "../db.js";
 import { ObjectId } from "mongodb"; // 🌟 FIX 1: Import ObjectId
 
 const router = express.Router();
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: User authentication routes
+ */
+
+/**
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Create a new user account
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: John Doe
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john@example.com
+ *               password:
+ *                 type: string
+ *                 example: verysecurepassword123
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Missing required fields or invalid password
+ *       409:
+ *         description: Email already in use
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Log in an existing user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john@example.com
+ *               password:
+ *                 type: string
+ *                 example: verysecurepassword123
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       400:
+ *         description: Missing email or password
+ *       401:
+ *         description: Invalid email or password
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Log out the current user
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ */
+
+/**
+ * @swagger
+ * /auth/check:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Check authentication status of current user
+ *     responses:
+ *       200:
+ *         description: Returns authenticated user info
+ *       401:
+ *         description: User not authenticated
+ */
+
 
 // jwt secret from .env
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -142,6 +245,7 @@ router.post("/login", async (req, res) => {
       })
       .json({
         message: "Login successful",
+        token,
         user: {
           id: user._id,
           name: user.name,
