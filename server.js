@@ -16,6 +16,7 @@ const allowedOrigins = [
   "https://plateful-three.vercel.app",
   "http://localhost:5173",
    "http://localhost:5001",
+   "https://plateful-backend-dn0i.onrender.com",
 ];
 
 app.use(
