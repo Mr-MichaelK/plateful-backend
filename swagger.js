@@ -2,6 +2,10 @@ import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
 const PORT = process.env.PORT || 5001;
+const API_URL = process.env.API_URL || `http://localhost:${PORT}/api`;
+
+
+
 
 const swaggerOptions = {
 definition: {
@@ -11,7 +15,7 @@ title: "Food Recipes API",
 version: "1.0.0",
 description: "API documentation for your full recipe application",
 },
-servers: [{ url: `https://plateful-backend-dn0i.onrender.com/api` }],
+servers: [{ url: API_URL }],
 components: {
 securitySchemes: {
 bearerAuth: {
