@@ -2,7 +2,11 @@ import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
 const PORT = process.env.PORT || 5001;
-const API_URL = process.env.API_URL || `http://localhost:${PORT}/api`;
+const isProduction = process.env.NODE_ENV === "production";
+
+const API_URL = isProduction
+  ? "https://plateful-backend-dn0i.onrender.com/api"
+  : `http://localhost:${PORT}/api`;
 
 
 
