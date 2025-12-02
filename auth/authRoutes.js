@@ -191,8 +191,9 @@ router.post("/signup", async (req, res) => {
     res
       .cookie("auth_token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: true,       // must be true for cross-site
+        sameSite: "none",   // must be none for cross-site
+        path: "/",          // accessible on all routes
         maxAge: THIRTY_DAYS_MS,
       })
       .status(201)
@@ -239,8 +240,9 @@ router.post("/login", async (req, res) => {
     res
       .cookie("auth_token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: true,
+        sameSite: "none",
+        path: "/",
         maxAge: THIRTY_DAYS_MS,
       })
       .json({
@@ -265,8 +267,9 @@ router.post("/logout", (req, res) => {
   res
     .clearCookie("auth_token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
+      path: "/",
     })
     .json({ message: "Logged out successfully" });
 });
@@ -309,3 +312,4 @@ router.get("/check", async (req, res) => {
 });
 
 export default router;
+
