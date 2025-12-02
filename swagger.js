@@ -11,7 +11,7 @@ title: "Food Recipes API",
 version: "1.0.0",
 description: "API documentation for your full recipe application",
 },
-servers: [{ url: `http://localhost:${PORT}/api` }],
+servers: [{ url: `https://plateful-backend-dn0i.onrender.com/api` }],
 components: {
 securitySchemes: {
 bearerAuth: {
