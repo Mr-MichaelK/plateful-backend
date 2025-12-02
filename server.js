@@ -14,10 +14,13 @@ const app = express();
 
 app.use(
   cors({
-    origin: "https://plateful-three.vercel.app", // your Vite frontend
-    credentials: true, // allow cookies for auth
+    origin: "https://plateful-three.vercel.app",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type"],
   })
 );
+
 
 app.use(cookieParser());
 app.use(express.json());
