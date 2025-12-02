@@ -15,6 +15,7 @@ const app = express();
 const allowedOrigins = [
   "https://plateful-three.vercel.app",
   "http://localhost:5173",
+   "http://localhost:5001",
 ];
 
 app.use(
