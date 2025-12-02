@@ -144,6 +144,7 @@ function getTokenFromRequest(req) {
   return null;
 }
 
+const isProduction = process.env.NODE_ENV === "production"; 
 // signup: create a new user in mongodb
 router.post("/signup", async (req, res) => {
   try {
@@ -191,8 +192,8 @@ router.post("/signup", async (req, res) => {
     res
       .cookie("auth_token", token, {
         httpOnly: true,
-        secure: true,       // must be true for cross-site
-        sameSite: "none",   // must be none for cross-site
+        secure: isProduction,          // true in production, false for local dev (Swagger)
+        sameSite: isProduction ? "none" : "lax",
         path: "/",          // accessible on all routes
         maxAge: THIRTY_DAYS_MS,
       })
@@ -240,8 +241,8 @@ router.post("/login", async (req, res) => {
     res
       .cookie("auth_token", token, {
         httpOnly: true,
-        secure: true,
-        sameSite: "none",
+       secure: isProduction,          // true in production, false for local dev (Swagger)
+        sameSite: isProduction ? "none" : "lax",
         path: "/",
         maxAge: THIRTY_DAYS_MS,
       })
@@ -267,8 +268,8 @@ router.post("/logout", (req, res) => {
   res
     .clearCookie("auth_token", {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+     secure: isProduction,          // true in production, false for local dev (Swagger)
+        sameSite: isProduction ? "none" : "lax",
       path: "/",
     })
     .json({ message: "Logged out successfully" });
