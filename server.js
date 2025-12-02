@@ -14,7 +14,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // your Vite frontend
+    origin: "https://plateful-three.vercel.app", // your Vite frontend
     credentials: true, // allow cookies for auth
   })
 );
